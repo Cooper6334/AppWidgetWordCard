@@ -9,6 +9,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.api.GoogleApiClient
 import android.content.Intent
+import android.content.SharedPreferences
+import android.preference.PreferenceManager
 import android.util.JsonReader
 import android.util.Log
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -138,18 +140,32 @@ class MainActivity : AppCompatActivity(),
             .setApplicationName(getString(R.string.app_name))
             .build()
         val threadSheet = Thread(Runnable {
+            val preference = PreferenceManager.getDefaultSharedPreferences(this)
+            val editor = preference.edit()
             val result = service.Spreadsheets().Values().get(sheetID, sheetRange).execute()
             Log.e("cooper", "json " + result)
             val gson = Gson()
             var jsonResult = gson.fromJson(result.toString(), SheetJson::class.java)
+            var saveCnt = 0
             for (i in 0..jsonResult.values.size - 1) {
                 var row = jsonResult.values[i]
                 var s = ""
                 for (j in 0..row.size - 1) {
                     s += row[j] + ","
                 }
-                Log.e("cooper", "${i}:${s}")
+                Log.e("cooper", "rowsize ${row.size}")
+                if (row.size >= 2) {
+                    editor.putString("testset${saveCnt}_0", row[0])
+                    editor.putString("testset${saveCnt}_1", row[1])
+                    //editor.putString("testset${saveCnt}_2", row[2])
+                    saveCnt++
+                    Log.e("cooper", "save pref ${row[0]} ${row[1]}")
+                }
+//                Log.e("cooper", "${i}:${s}")
             }
+            editor.putInt("testset", saveCnt)
+            editor.apply()
+            Log.e("cooper", "apply preference finish cnt ${saveCnt}")
         })
         threadSheet.start()
 
