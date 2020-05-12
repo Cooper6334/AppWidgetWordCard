@@ -6,10 +6,10 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.preference.PreferenceManager
 import android.util.Log
 import android.widget.RemoteViews
-import kotlin.random.Random
+import io.realm.Realm
+import io.realm.RealmResults
 
 const val ACTION_WIDGET_CLICK_SELF = "com.cooper.wordcard.widget.self"
 var index = 0;
@@ -33,19 +33,14 @@ class MyWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
-
-        // Enter relevant functionality for when the first widget is created
-        val preference = PreferenceManager.getDefaultSharedPreferences(context)
-        val saveCnt = preference.getInt("testset", 0)
-        Log.e("cooper", "onEnabled get cnt ${saveCnt}")
-        for (i in 0..saveCnt - 1) {
-            val s1 = preference.getString("testset${i}_0", "")
-            val s2 = preference.getString("testset${i}_1", "")
-            //val s3 = preference.getString("testset${saveCnt}_2", "")
-            Log.e("cooper", "onEnabled get ${s1} ${s2} ")
-            strings.add(s1)
-            strings.add(s2)
-            //strings.add(s3)
+        var realm = Realm.getDefaultInstance()
+        val query = realm.where(WordCardModel::class.java)
+        val result: RealmResults<WordCardModel> = query.findAll()
+        result.forEach{
+            it.wordList[0]?.let { it1 -> strings.add(it1)
+                Log.e("cooper","Get ${it1}")}
+            it.wordList[1]?.let { it1 -> strings.add(it1)
+                Log.e("cooper","Get ${it1}")}
         }
     }
 
