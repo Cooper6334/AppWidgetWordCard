@@ -26,6 +26,19 @@ class MyWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         Log.e("cooper", "onUpdate")
+        if(strings.size == 0){
+            Log.e("cooper", "reload data")
+
+            var realm = Realm.getDefaultInstance()
+            val query = realm.where(WordCardModel::class.java)
+            val result: RealmResults<WordCardModel> = query.findAll()
+            result.forEach{
+                it.wordList[0]?.let { it1 -> strings.add(it1)
+                    Log.e("cooper","Get ${it1}")}
+                it.wordList[1]?.let { it1 -> strings.add(it1)
+                    Log.e("cooper","Get ${it1}")}
+            }
+        }
         // There may be multiple widgets active, so update all of them
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
@@ -33,15 +46,6 @@ class MyWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
-        var realm = Realm.getDefaultInstance()
-        val query = realm.where(WordCardModel::class.java)
-        val result: RealmResults<WordCardModel> = query.findAll()
-        result.forEach{
-            it.wordList[0]?.let { it1 -> strings.add(it1)
-                Log.e("cooper","Get ${it1}")}
-            it.wordList[1]?.let { it1 -> strings.add(it1)
-                Log.e("cooper","Get ${it1}")}
-        }
     }
 
     override fun onDisabled(context: Context) {
