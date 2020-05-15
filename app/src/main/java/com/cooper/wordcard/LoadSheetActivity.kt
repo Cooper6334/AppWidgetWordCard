@@ -3,7 +3,13 @@ package com.cooper.wordcard
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.auth.api.Auth
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -15,22 +21,23 @@ import com.google.api.client.extensions.android.http.AndroidHttp
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.drive.Drive
-import com.google.api.services.drive.DriveRequestInitializer
 import com.google.api.services.drive.DriveScopes
-import com.google.api.services.drive.model.File
-import com.google.api.services.drive.model.FileList
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.gson.Gson
 import io.realm.Realm
+import kotlinx.android.synthetic.main.activity_load_sheet.*
 
 
 class LoadSheetActivity : AppCompatActivity(),
     GoogleApiClient.OnConnectionFailedListener,
     GoogleApiClient.ConnectionCallbacks {
 
-    lateinit var googleApiClient: GoogleApiClient
-    var userAccount: GoogleSignInAccount? = null
+    private lateinit var googleApiClient: GoogleApiClient
+    private lateinit var userAccount: GoogleSignInAccount
+    private lateinit var credential: GoogleAccountCredential
+    private var nextPageToken: String = ""
+    private lateinit var adapter: SheetAdapter
 
     override fun onConnectionSuspended(p0: Int) {
         Log.e("cooper", "get userAccount onConnectionSuspended")
@@ -51,9 +58,13 @@ class LoadSheetActivity : AppCompatActivity(),
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_load_sheet)
         initPermission()
-        //TODO select function
-        downloadGoogleSheet()
 
+        sheetListView.setLayoutManager(LinearLayoutManager(this));
+        adapter = SheetAdapter()
+        sheetListView.setAdapter(adapter)
+
+        val googleSignInIntent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient)
+        startActivityForResult(googleSignInIntent, 6334)
     }
 
     private fun initPermission() {
@@ -64,7 +75,6 @@ class LoadSheetActivity : AppCompatActivity(),
             .requestScopes(Scope(DriveScopes.DRIVE))
             .requestScopes(Scope(SheetsScopes.SPREADSHEETS))
             .requestScopes(Scope(SheetsScopes.SPREADSHEETS_READONLY))
-            //.requestScopes(Drive.SCOPE_FILE)
             .build()
         googleApiClient = GoogleApiClient.Builder(this)
             .enableAutoManage(this, this)
@@ -86,7 +96,12 @@ class LoadSheetActivity : AppCompatActivity(),
                     GoogleSignIn.getSignedInAccountFromIntent(data)
                         .addOnSuccessListener { account ->
                             userAccount = account
-                            readEmployeeList()
+                            credential = GoogleAccountCredential.usingOAuth2(
+                                applicationContext,
+                                listOf(SheetsScopes.SPREADSHEETS_READONLY)
+                            )
+                            credential.selectedAccount = userAccount.account
+                            getSheetList()
                         }
                     return
                 }
@@ -99,30 +114,13 @@ class LoadSheetActivity : AppCompatActivity(),
 
     }
 
-    private fun downloadGoogleSheet() {
-        if (userAccount != null) {
-            Log.e("cooper", "get userAccount " + userAccount!!.displayName)
-            readEmployeeList()
-            //Log.e("cooper")
-        } else {
-            val googleSignInIntent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient)
-            startActivityForResult(googleSignInIntent, 6334)
-        }
-    }
-
-    private fun readEmployeeList() {
-        // サービスのスコープとしてSpreadSheetsのReadOnlyを設定
-        val scopes = listOf(SheetsScopes.SPREADSHEETS_READONLY)
-        val credential = GoogleAccountCredential.usingOAuth2(applicationContext, scopes)
-        credential.selectedAccount = userAccount!!.account
-        if (credential.selectedAccount == null) {
-            Log.e("cooper", "account null")
-        }
-        val jsonFactory = JacksonFactory.getDefaultInstance()
-        val httpTransport = AndroidHttp.newCompatibleTransport()
-
+    private fun getSheetList() {
         // drive api
-        val googleDriveService = Drive.Builder(httpTransport, jsonFactory, credential)
+        val googleDriveService = Drive.Builder(
+            AndroidHttp.newCompatibleTransport(),
+            JacksonFactory.getDefaultInstance(),
+            credential
+        )
             .setApplicationName(getString(R.string.app_name))
             .build()
         val threadSheet = Thread(Runnable {
@@ -131,27 +129,33 @@ class LoadSheetActivity : AppCompatActivity(),
                 .list()
                 .setQ("mimeType='application/vnd.google-apps.spreadsheet'")
                 .setOrderBy("viewedByMeTime desc")
+            if (nextPageToken.isNotEmpty()) {
+                request.pageToken = nextPageToken
+            }
             var result = request.execute()
+            nextPageToken = result.nextPageToken
+            val sheetNames = ArrayList<String>()
+            val sheetKeys = ArrayList<String>()
             result.files.forEach {
                 Log.e("cooper", it.name + ":" + it.id)
+                sheetNames.add(it.name)
+                sheetKeys.add(it.id)
             }
-            /*
-        while(true){
-            result.files.forEach {
-                Log.e("cooper", it.name+":"+it.id)
-            }
-            if(result.nextPageToken == null){
-                break
-            }
-            request.pageToken = result.nextPageToken
-            result= request.execute()
-            }
-             */
+
+            this@LoadSheetActivity.runOnUiThread(java.lang.Runnable {
+                adapter.addNewData(sheetNames, sheetKeys)
+            })
         })
         threadSheet.start()
-        /*
+    }
+
+    fun readSheet(sheetID: String, sheetRange: String) {
         // sheet api
-        val service = Sheets.Builder(httpTransport, jsonFactory, credential)
+        val service = Sheets.Builder(
+            AndroidHttp.newCompatibleTransport(),
+            JacksonFactory.getDefaultInstance(),
+            credential
+        )
             .setApplicationName(getString(R.string.app_name))
             .build()
         val threadSheet = Thread(Runnable {
@@ -171,10 +175,12 @@ class LoadSheetActivity : AppCompatActivity(),
                 Log.e("cooper", "rowsize ${row.size}")
                 if (row.size >= 2) {
                     //editor.putString("testset${saveCnt}_2", row[2])
+                    /*
                     var card = realm.createObject(WordCardModel::class.java)
                     card.id = saveCnt;
                     card.wordList.add(row[0])
                     card.wordList.add(row[1])
+                     */
                     saveCnt++
                     Log.e("cooper", "save pref ${row[0]} ${row[1]}")
                 }
@@ -186,13 +192,42 @@ class LoadSheetActivity : AppCompatActivity(),
             Log.e("cooper", "apply preference finish cnt ${saveCnt}")
         })
         threadSheet.start()
-*/
-    }
-/*
-    companion object {
-        val sheetID = "1BZGHuQRvC-caZr3-3tcsa0Q04W9vE6p4y_-5q1oy798"
-        val sheetRange = "工作表1!A1:B500"
     }
 
- */
+    inner class SheetAdapter : RecyclerView.Adapter<SheetAdapter.Holder>() {
+        var sheetList = ArrayList<String>()
+        var keyList = ArrayList<String>()
+
+        inner class Holder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            init {
+                itemView.setOnClickListener {
+                    //Log.e("cooper", "Click sheet ${sheetList[adapterPosition]}")
+                    this@LoadSheetActivity.readSheet(keyList[adapterPosition], "工作表1!A1:B500")
+                }
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
+            val v: View =
+                LayoutInflater.from(parent.context)
+                    .inflate(android.R.layout.simple_list_item_1, parent, false)
+            return Holder(v)
+        }
+
+        override fun getItemCount(): Int {
+            return sheetList.size
+        }
+
+        override fun onBindViewHolder(holder: Holder, position: Int) {
+            val tv: TextView = holder.itemView as TextView
+            tv.text = sheetList[position]
+        }
+
+        fun addNewData(newName: ArrayList<String>, newKey: ArrayList<String>) {
+            newName.forEach { sheetList.add(it) }
+            newKey.forEach { keyList.add(it) }
+            notifyDataSetChanged()
+        }
+    }
+
 }
