@@ -1,10 +1,9 @@
 package com.cooper.wordcard
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.preference.PreferenceManager
 import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.auth.api.Auth
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -16,13 +15,17 @@ import com.google.api.client.extensions.android.http.AndroidHttp
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.drive.Drive
+import com.google.api.services.drive.DriveRequestInitializer
 import com.google.api.services.drive.DriveScopes
+import com.google.api.services.drive.model.File
+import com.google.api.services.drive.model.FileList
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.SheetsScopes
 import com.google.gson.Gson
 import io.realm.Realm
 
-class LoadSheetActivity : AppCompatActivity() ,
+
+class LoadSheetActivity : AppCompatActivity(),
     GoogleApiClient.OnConnectionFailedListener,
     GoogleApiClient.ConnectionCallbacks {
 
@@ -53,7 +56,7 @@ class LoadSheetActivity : AppCompatActivity() ,
 
     }
 
-    private fun initPermission(){
+    private fun initPermission() {
         val googleSignInOptions = GoogleSignInOptions.Builder(
             GoogleSignInOptions.DEFAULT_SIGN_IN
         ).requestEmail()
@@ -74,7 +77,7 @@ class LoadSheetActivity : AppCompatActivity() ,
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 6334) {
             val result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
-            if(result == null){
+            if (result == null) {
                 Log.e("cooper", "no result")
                 return
             }
@@ -88,12 +91,15 @@ class LoadSheetActivity : AppCompatActivity() ,
                     return
                 }
             }
-            Log.e("cooper", "get userAccount failed ${resultCode} ${result.status.statusMessage} ${result.status.statusCode}")
+            Log.e(
+                "cooper",
+                "get userAccount failed ${resultCode} ${result.status.statusMessage} ${result.status.statusCode}"
+            )
         }
 
     }
 
-    private fun downloadGoogleSheet(){
+    private fun downloadGoogleSheet() {
         if (userAccount != null) {
             Log.e("cooper", "get userAccount " + userAccount!!.displayName)
             readEmployeeList()
@@ -102,7 +108,9 @@ class LoadSheetActivity : AppCompatActivity() ,
             val googleSignInIntent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient)
             startActivityForResult(googleSignInIntent, 6334)
         }
-    }private fun readEmployeeList() {
+    }
+
+    private fun readEmployeeList() {
         // サービスのスコープとしてSpreadSheetsのReadOnlyを設定
         val scopes = listOf(SheetsScopes.SPREADSHEETS_READONLY)
         val credential = GoogleAccountCredential.usingOAuth2(applicationContext, scopes)
@@ -117,7 +125,31 @@ class LoadSheetActivity : AppCompatActivity() ,
         val googleDriveService = Drive.Builder(httpTransport, jsonFactory, credential)
             .setApplicationName(getString(R.string.app_name))
             .build()
-
+        val threadSheet = Thread(Runnable {
+            val request = googleDriveService
+                .files()
+                .list()
+                .setQ("mimeType='application/vnd.google-apps.spreadsheet'")
+                .setOrderBy("viewedByMeTime desc")
+            var result = request.execute()
+            result.files.forEach {
+                Log.e("cooper", it.name + ":" + it.id)
+            }
+            /*
+        while(true){
+            result.files.forEach {
+                Log.e("cooper", it.name+":"+it.id)
+            }
+            if(result.nextPageToken == null){
+                break
+            }
+            request.pageToken = result.nextPageToken
+            result= request.execute()
+            }
+             */
+        })
+        threadSheet.start()
+        /*
         // sheet api
         val service = Sheets.Builder(httpTransport, jsonFactory, credential)
             .setApplicationName(getString(R.string.app_name))
@@ -154,11 +186,13 @@ class LoadSheetActivity : AppCompatActivity() ,
             Log.e("cooper", "apply preference finish cnt ${saveCnt}")
         })
         threadSheet.start()
-
+*/
     }
-
+/*
     companion object {
         val sheetID = "1BZGHuQRvC-caZr3-3tcsa0Q04W9vE6p4y_-5q1oy798"
         val sheetRange = "工作表1!A1:B500"
     }
+
+ */
 }

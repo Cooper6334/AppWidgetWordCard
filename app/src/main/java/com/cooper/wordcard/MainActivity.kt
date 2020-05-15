@@ -20,11 +20,12 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
 
         fab.setOnClickListener { view ->
-            //val intent = Intent(this@MainActivity, LoadSheetActivity::class.java)
-            //startActivity(intent)
+            val intent = Intent(this@MainActivity, LoadSheetActivity::class.java)
+            startActivity(intent)
+            /*
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 pinWidget()
-            }
+            }*/
         }
 
         /*
