@@ -149,7 +149,7 @@ class LoadSheetActivity : AppCompatActivity(),
         threadSheet.start()
     }
 
-    fun readSheet(sheetID: String, sheetRange: String) {
+    fun readSheet(sheetId: String, sheetName: String) {
         // sheet api
         val service = Sheets.Builder(
             AndroidHttp.newCompatibleTransport(),
@@ -159,10 +159,17 @@ class LoadSheetActivity : AppCompatActivity(),
             .setApplicationName(getString(R.string.app_name))
             .build()
         val threadSheet = Thread(Runnable {
-            val result = service.Spreadsheets().Values().get(sheetID, sheetRange).execute()
-            Log.e("cooper", "json " + result)
-            var realm = Realm.getDefaultInstance()
-            realm.beginTransaction()
+            val getTabName = service.Spreadsheets().get(sheetId).execute()
+            val tabName = getTabName.sheets[0].properties.title
+            val tabId = getTabName.sheets[0].properties.sheetId
+            val result = service.Spreadsheets().Values().get(sheetId, "$tabName!A1:B").execute()
+
+            val sheetModel = SheetModel()
+            sheetModel.sheetName = sheetName
+            sheetModel.sheetId = sheetId
+            sheetModel.tabName = tabName
+            sheetModel.tabId = tabId
+            sheetModel.key = "$sheetId$tabId";
             val gson = Gson()
             var jsonResult = gson.fromJson(result.toString(), SheetJson::class.java)
             var saveCnt = 0
@@ -175,18 +182,21 @@ class LoadSheetActivity : AppCompatActivity(),
                 Log.e("cooper", "rowsize ${row.size}")
                 if (row.size >= 2) {
                     //editor.putString("testset${saveCnt}_2", row[2])
-                    /*
-                    var card = realm.createObject(WordCardModel::class.java)
+
+                    var card = WordCardModel()
                     card.id = saveCnt;
                     card.wordList.add(row[0])
                     card.wordList.add(row[1])
-                     */
+                    sheetModel.wordList.add(card)
                     saveCnt++
                     Log.e("cooper", "save pref ${row[0]} ${row[1]}")
                 }
 
 //                Log.e("cooper", "${i}:${s}")
             }
+            var realm = Realm.getDefaultInstance()
+            realm.beginTransaction()
+            realm.copyToRealmOrUpdate(sheetModel)
             realm.commitTransaction()
             realm.close()
             Log.e("cooper", "apply preference finish cnt ${saveCnt}")
@@ -202,7 +212,10 @@ class LoadSheetActivity : AppCompatActivity(),
             init {
                 itemView.setOnClickListener {
                     //Log.e("cooper", "Click sheet ${sheetList[adapterPosition]}")
-                    this@LoadSheetActivity.readSheet(keyList[adapterPosition], "工作表1!A1:B500")
+                    this@LoadSheetActivity.readSheet(
+                        keyList[adapterPosition],
+                        sheetList[adapterPosition]
+                    )
                 }
             }
         }
