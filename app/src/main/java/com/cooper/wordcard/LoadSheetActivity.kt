@@ -187,7 +187,7 @@ class LoadSheetActivity : AppCompatActivity(),
                     card.id = saveCnt;
                     card.wordList.add(row[0])
                     card.wordList.add(row[1])
-                    sheetModel.wordList.add(card)
+                    sheetModel.cardList.add(card)
                     saveCnt++
                     Log.e("cooper", "save pref ${row[0]} ${row[1]}")
                 }

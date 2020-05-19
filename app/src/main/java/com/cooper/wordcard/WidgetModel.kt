@@ -8,5 +8,6 @@ open class WidgetModel(
     @PrimaryKey var widgetId: Int = 0,
     var sheetId: String = "",
     var lastRow: Int = 0,
+    var lastColumn: Int = -1,
     var random: Boolean = false
 ) : RealmObject()

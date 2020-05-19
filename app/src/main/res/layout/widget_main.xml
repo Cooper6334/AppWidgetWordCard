@@ -10,7 +10,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
-        android:text="test"
+        android:text="Press to start"
         android:textColor="@android:color/white"
         android:textSize="18sp" />
 </RelativeLayout>

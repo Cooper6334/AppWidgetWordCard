@@ -11,5 +11,5 @@ open class SheetModel(
     var tabId: Int = 0,
     var sheetName: String = "",
     var tabName: String = "",
-    var wordList: RealmList<WordCardModel> = RealmList<WordCardModel>()
+    var cardList: RealmList<WordCardModel> = RealmList<WordCardModel>()
 ) : RealmObject()

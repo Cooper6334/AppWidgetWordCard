@@ -16,14 +16,14 @@ import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
-    var sheetId: String = ""
+    var sheetKey: String = ""
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
 
         fab.setOnClickListener { view ->
-            if (sheetId.isEmpty()) {
+            if (sheetKey.isEmpty()) {
                 val intent = Intent(this@MainActivity, LoadSheetActivity::class.java)
                 startActivity(intent)
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
         val query = realm.where(SheetModel::class.java)
         val result: RealmResults<SheetModel> = query.findAll()
         result.forEach {
-            sheetId = it.key
+            sheetKey = it.key
             Log.e("cooper", "Get ${it.key}${it.sheetName})${it.tabName}")
         }
     }
@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
             if (appWidgetManager.isRequestPinAppWidgetSupported) {
                 Intent(this@MainActivity, WidgetConfigureActivity::class.java)
                     .let { intent ->
-                        intent.putExtra("sheetId", sheetId)
+                        intent.putExtra("sheetKey", sheetKey)
                         PendingIntent.getActivity(
                             this@MainActivity,
                             0,
