@@ -1,5 +1,6 @@
 package com.cooper.wordcard
 
+import android.app.ProgressDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -163,9 +164,8 @@ class LoadSheetActivity : AppCompatActivity(),
             var tabIndex = 0
             val getTabName = service.Spreadsheets().get(sheetId).execute()
             val tabName = getTabName.sheets[tabIndex].properties.title
-            val tabId = getTabName.sheets[tabIndex].properties.sheetId
-            val result = service.Spreadsheets().Values().get(sheetId, "$tabName!A1:B").execute()
-            readTab(service, sheetId, sheetName, 0)
+            //val tabId = getTabName.sheets[tabIndex].properties.sheetId
+            readTab(service, sheetId, sheetName, tabName,0)
         })
         threadSheet.start()
     }
@@ -178,6 +178,7 @@ class LoadSheetActivity : AppCompatActivity(),
         tabId: Int
     ) {
 
+        val result = service.Spreadsheets().Values().get(sheetId, "$tabName!A1:B").execute()
         val sheetModel = SheetModel()
         sheetModel.sheetName = sheetName
         sheetModel.sheetId = sheetId
@@ -213,6 +214,8 @@ class LoadSheetActivity : AppCompatActivity(),
         realm.copyToRealmOrUpdate(sheetModel)
         realm.commitTransaction()
         realm.close()
+        runOnUiThread { finish()}
+
         Log.e("cooper", "apply preference finish cnt ${saveCnt}")
     }
 
@@ -224,6 +227,7 @@ class LoadSheetActivity : AppCompatActivity(),
             init {
                 itemView.setOnClickListener {
                     //Log.e("cooper", "Click sheet ${sheetList[adapterPosition]}")
+                    ProgressDialog.show(this@LoadSheetActivity,"Loading","")
                     this@LoadSheetActivity.readSheet(
                         keyList[adapterPosition],
                         sheetList[adapterPosition]

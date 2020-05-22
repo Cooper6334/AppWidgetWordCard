@@ -30,7 +30,10 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this@MainActivity, LoadSheetActivity::class.java)
             startActivity(intent)
         }
+    }
 
+    override fun onResume() {
+        super.onResume()
         var realm = Realm.getDefaultInstance()
         val query = realm.where(SheetModel::class.java)
         val result: RealmResults<SheetModel> = query.findAll()
