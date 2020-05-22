@@ -59,9 +59,9 @@ class LoadSheetActivity : AppCompatActivity(),
         setContentView(R.layout.activity_load_sheet)
         initPermission()
 
-        sheetListView.setLayoutManager(LinearLayoutManager(this));
+        sheetListView.layoutManager = LinearLayoutManager(this);
         adapter = SheetAdapter()
-        sheetListView.setAdapter(adapter)
+        sheetListView.adapter = adapter
 
         val googleSignInIntent = Auth.GoogleSignInApi.getSignInIntent(googleApiClient)
         startActivityForResult(googleSignInIntent, 6334)
@@ -151,57 +151,69 @@ class LoadSheetActivity : AppCompatActivity(),
 
     fun readSheet(sheetId: String, sheetName: String) {
         // sheet api
-        val service = Sheets.Builder(
-            AndroidHttp.newCompatibleTransport(),
-            JacksonFactory.getDefaultInstance(),
-            credential
-        )
-            .setApplicationName(getString(R.string.app_name))
-            .build()
         val threadSheet = Thread(Runnable {
+            val service = Sheets.Builder(
+                AndroidHttp.newCompatibleTransport(),
+                JacksonFactory.getDefaultInstance(),
+                credential
+            )
+                .setApplicationName(getString(R.string.app_name))
+                .build()
+
+            var tabIndex = 0
             val getTabName = service.Spreadsheets().get(sheetId).execute()
-            val tabName = getTabName.sheets[0].properties.title
-            val tabId = getTabName.sheets[0].properties.sheetId
+            val tabName = getTabName.sheets[tabIndex].properties.title
+            val tabId = getTabName.sheets[tabIndex].properties.sheetId
             val result = service.Spreadsheets().Values().get(sheetId, "$tabName!A1:B").execute()
-
-            val sheetModel = SheetModel()
-            sheetModel.sheetName = sheetName
-            sheetModel.sheetId = sheetId
-            sheetModel.tabName = tabName
-            sheetModel.tabId = tabId
-            sheetModel.key = "$sheetId$tabId";
-            val gson = Gson()
-            var jsonResult = gson.fromJson(result.toString(), SheetJson::class.java)
-            var saveCnt = 0
-            for (i in 0..jsonResult.values.size - 1) {
-                var row = jsonResult.values[i]
-                var s = ""
-                for (j in 0..row.size - 1) {
-                    s += row[j] + ","
-                }
-                Log.e("cooper", "rowsize ${row.size}")
-                if (row.size >= 2) {
-                    //editor.putString("testset${saveCnt}_2", row[2])
-
-                    var card = WordCardModel()
-                    card.id = saveCnt;
-                    card.wordList.add(row[0])
-                    card.wordList.add(row[1])
-                    sheetModel.cardList.add(card)
-                    saveCnt++
-                    Log.e("cooper", "save pref ${row[0]} ${row[1]}")
-                }
-
-//                Log.e("cooper", "${i}:${s}")
-            }
-            var realm = Realm.getDefaultInstance()
-            realm.beginTransaction()
-            realm.copyToRealmOrUpdate(sheetModel)
-            realm.commitTransaction()
-            realm.close()
-            Log.e("cooper", "apply preference finish cnt ${saveCnt}")
+            readTab(service, sheetId, sheetName, 0)
         })
         threadSheet.start()
+    }
+
+    fun readTab(
+        service: Sheets,
+        sheetId: String,
+        sheetName: String,
+        tabName: String,
+        tabId: Int
+    ) {
+
+        val sheetModel = SheetModel()
+        sheetModel.sheetName = sheetName
+        sheetModel.sheetId = sheetId
+        sheetModel.tabName = tabName
+        sheetModel.tabId = tabId
+        sheetModel.key = "$sheetId$tabId";
+        val gson = Gson()
+        var jsonResult = gson.fromJson(result.toString(), SheetJson::class.java)
+        var saveCnt = 0
+        for (i in 0..jsonResult.values.size - 1) {
+            var row = jsonResult.values[i]
+            var s = ""
+            for (j in 0..row.size - 1) {
+                s += row[j] + ","
+            }
+            Log.e("cooper", "rowsize ${row.size}")
+            if (row.size >= 2) {
+                //editor.putString("testset${saveCnt}_2", row[2])
+
+                var card = WordCardModel()
+                card.id = saveCnt;
+                card.wordList.add(row[0])
+                card.wordList.add(row[1])
+                sheetModel.cardList.add(card)
+                saveCnt++
+                Log.e("cooper", "save pref ${row[0]} ${row[1]}")
+            }
+
+//                Log.e("cooper", "${i}:${s}")
+        }
+        var realm = Realm.getDefaultInstance()
+        realm.beginTransaction()
+        realm.copyToRealmOrUpdate(sheetModel)
+        realm.commitTransaction()
+        realm.close()
+        Log.e("cooper", "apply preference finish cnt ${saveCnt}")
     }
 
     inner class SheetAdapter : RecyclerView.Adapter<SheetAdapter.Holder>() {
